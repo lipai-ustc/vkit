@@ -1,0 +1,35 @@
+#---------- default ----------#
+ISTART = 0
+ICHARG = 2
+PREC = Normal
+ENCUT = 440
+EDIFF = 1E-5
+ALGO = Fast
+LREAL = Auto
+ISMEAR = 0
+SIGMA = 0.1
+NELM = 100
+NELMIN = 4
+IVDW = 12
+
+#---------- parallel ----------#
+NCORE = 8
+KPAR = 4
+
+#---------- neb ----------#
+ISIF = 2 #fix box
+EDIFFG = -0.03
+NSW = 1000
+IBRION = 3
+POTIM = 0
+IOPT = 7 # 1-LBFGS 2-CG 3-QM 4-SD 7-FIRE 8-ML
+##:  = complex system use 7, simple system use CG/LBFGS
+ICHAIN = 0
+IMAGES = 3
+SPRING = -5
+LCLIMB = True
+
+#---------- chout ----------#
+LWAVE = False
+LCHARG = False
+

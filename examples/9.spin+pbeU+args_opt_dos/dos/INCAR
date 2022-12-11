@@ -1,0 +1,52 @@
+#---------- default ----------#
+ISTART = 0
+ICHARG = 2
+PREC = Accurate
+ENCUT = 520
+EDIFF = 1E-6
+ALGO = Fast
+LREAL = Auto
+NELMIN = 4
+IVDW = 12
+ISIF = 2 #output Pressure for static calculations
+
+#---------- parallel ----------#
+NCORE = 8
+KPAR = 4
+
+#---------- spin ----------#
+NELM = 200
+ISPIN = 2
+MAGMOM = 4*5.0 1*0.2 1*5.0 1*0.2 1*0.2 1*5.0 1*5.0 
+
+#---------- pbeU ----------#
+LDAU = True
+LDAUTYPE = 2
+LDAUL = 2    0    2    0    0    2    2    
+LDAUU = 3.25 0.00 3.25 0.00 0.00 5.30 3.90 
+LDAUJ = 0    0    0    0    0    0    0    
+LMAXMIX = 4 # =4 for d; =6 for f; important for bandstructure calc
+LASPH = True # aspherical contributions. important for DFT+U, HSE, metaGGA, vdw-DFT
+LDAUPRINT = 1 # Write occupancy matrix to the OUTCAR file
+## = https://docs.materialsproject.org/methodology/materials-methodology/thermodynamic-stability/thermodynamic-stability#gga-gga+u-mixing-corrections
+
+#---------- dos ----------#
+ISMEAR = -5
+LORBIT = 11
+NEDOS = 3000
+EMIN = -20
+EMAX = 10
+
+#---------- bader ----------#
+LAECHG = TRUE # only for static calculation
+#1:  = chgsum.pl AECCAR0 AECCAR2
+#2:  = bader CHGCAR -ref CHGCAR_sum
+##:  = AECCAR0/1/2: core/overlapping_atomic/self-consistent_valence charge density
+
+#---------- ELF ----------#
+LELF = True
+
+#---------- chout ----------#
+LWAVE = True
+LCHARG = True
+

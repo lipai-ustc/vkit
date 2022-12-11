@@ -1,0 +1,32 @@
+#---------- default ----------#
+ISTART = 0
+ICHARG = 2
+PREC = Accurate
+ENCUT = 520
+EDIFF = 1E-6
+ALGO = Fast
+LREAL = Auto
+NELMIN = 4
+IVDW = 12
+ISIF = 2 #output Pressure for static calculations
+
+#---------- parallel ----------#
+NCORE = 8
+KPAR = 4
+
+#---------- spin ----------#
+NELM = 200
+ISPIN = 2
+MAGMOM = 4*5.0 1*0.2 1*5.0 1*0.2 1*0.2 1*5.0 1*5.0 
+
+#---------- dos ----------#
+ISMEAR = -5
+LORBIT = 11
+NEDOS = 3000
+EMIN = -20
+EMAX = 10
+
+#---------- chout ----------#
+LWAVE = True
+LCHARG = True
+

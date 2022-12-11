@@ -1,0 +1,29 @@
+#---------- default ----------#
+ISTART = 0
+ICHARG = 2
+PREC = Normal
+ENCUT = 400
+EDIFF = 1E-4
+ALGO = Fast
+LREAL = Auto
+ISMEAR = 0
+SIGMA = 0.1
+NELM = 100
+NELMIN = 4
+IVDW = 12
+
+#---------- parallel ----------#
+NCORE = 8
+KPAR = 4
+
+#---------- opt ----------#
+ISIF = 2 #fix box
+IBRION = 2
+POTIM = 0.4
+EDIFFG = -0.03
+NSW = 1000
+
+#---------- chout ----------#
+LWAVE = False
+LCHARG = False
+

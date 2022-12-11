@@ -1,0 +1,32 @@
+#---------- default ----------#
+ISTART = 0
+ICHARG = 2
+PREC = Normal
+ENCUT = 440
+EDIFF = 1E-5
+ALGO = Fast
+LREAL = Auto
+ISMEAR = 0
+SIGMA = 0.1
+NELM = 100
+NELMIN = 4
+IVDW = 12
+ISIF = 2 #output Pressure for static calculations
+
+#---------- parallel ----------#
+NCORE = 8
+KPAR = 4
+
+#---------- STM ----------#
+LPARD = True   # output PARCHG
+LSEPK = False  # seperate K points
+LSEPB = False  # seperate band
+NBMOD = -3  # set Formi level as the energy reference 
+EINT = -0.1 0.1  # energy range
+#1:  = vaspkit task 325
+##: PREC = Single # to avoids high-frequency oscillations of the charge density in the vacuum region
+
+#---------- chout ----------#
+LWAVE = False
+LCHARG = False
+

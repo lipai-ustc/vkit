@@ -1,0 +1,23 @@
+
+#=================== OPT ===================#
+cp POSCAR opt/
+cd opt/
+run_vasp
+cd ..
+
+#================== Re-OPT =================#
+cp opt/CONTCAR opt_acc/POSCAR
+cd opt_acc/
+run_vasp
+cd ..
+
+#================== PHONON =================#
+cp opt_acc/CONTCAR phonon/POSCAR-unit
+cd phonon/
+phonopy -d --dim="2 2 1" -c POSCAR-unit
+mv SPOSCAR POSCAR
+run_vasp
+phonopy --fc vasprun.xml
+#phonopy --dim="2 2 1" -c POSCAR-unit band.conf
+#phonopy -t -p mesh.conf
+#more example: https://phonopy.github.io/phonopy/examples.html#

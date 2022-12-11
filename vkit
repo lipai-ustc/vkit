@@ -1,0 +1,493 @@
+#!/usr/bin/env python
+import os,copy
+from ase.io import read,write
+from ase.data import atomic_numbers
+from parse import command_line_arg
+import numpy as np
+
+# https://docs.materialsproject.org/methodology/materials-methodology/calculation-details/gga+u-calculations
+# The U values are calibrated for phase stability analyses, and should be used with care if applied to obtain other properties such as band structures.
+LDAUL_all=['Co','Cr','Fe','Mn','Mo','Ni','V','W']
+LDAUU_all={'Co':3.32,'Cr':3.7,'Fe':5.3,'Mn':3.9,'Mo':4.38,'Ni':6.2,'V':3.25,'W':6.2}
+
+# https://pymatgen.org/pymatgen.io.vasp.sets.html?highlight=magmom
+MAGMOM_all={'Ce':5, 'Co':1, 'Cr':5, 'Dy':5, 'Er':3, 'Eu':10, 'Fe':5,
+'Gd':7, 'Ho':4, 'La':0.6, 'Lu':0.6, 'Mn':5,  'Mo':5, 'Nd':3, 'Ni':5,
+'Pm':4, 'Pr':2, 'Sm':5, 'Tb':6, 'Tm':2, 'V':5, 'W':5, 'Yb':1}
+# MAGMOM_org={'Ce':5, 'Ce3+':1, 'Co':0.6, 'Co3+':0.6, 'Co4+':1, 'Cr':5, 'Dy3+':5, 'Er3+':3, 'Eu':10, 'Eu2+':7, 'Eu3+':6, 'Fe':5, 'Gd3+':7, 'Ho3+':4, 'La3+':0.6, 'Lu3+':0.6, 'Mn':5, 'Mn3+':4, 'Mn4+':3, 'Mo':5, 'Nd3+':3, 'Ni':5, 'Pm3+':4, 'Pr3+':2, 'Sm3+':5, 'Tb3+':6, 'Tm3+':2, 'V':5, 'W':5, 'Yb3+':1}
+
+# pseudopotential
+setups = {'Na':'_pv', 'K':'_sv', 'Ca':'_sv', 'Sc':'_sv',
+'Ti':'_sv', 'V':'_sv', 'Cr':'_pv', 'Mn':'_pv', 'Ga':'_d', 'Ge':'_d',
+'Rb':'_sv', 'Sr':'_sv', 'Y':'_sv', 'Zr':'_sv', 'Nb':'_sv', 'Mo':'_sv',
+'Tc':'_pv', 'Ru':'_pv', 'Rh':'_pv', 'In':'_d', 'Sn':'_d', 'Cs':'_sv',
+'Ba':'_sv', 'Pr':'_3', 'Nd':'_3', 'Pm':'_3', 'Sm':'_3', 
+'Gd':'_3', 'Tb':'_3', 'Dy':'_3', 'Ho':'_3', 'Er':'_3', 'Tm':'_3',
+'Yb':'_3', 'Lu':'_3', 'Hf':'_pv', 'Ta':'_pv', 'W':'_sv', 'Tl':'_d',
+'Pb':'_d', 'Bi':'_d', 'Po':'_d', 'Fr':'_sv', 'Ra':'_sv'}
+
+N_kpoints=1
+
+try:
+    atoms=read("POSCAR")
+except:
+    try:     atoms=read("init/POSCAR") # for NEB
+    except:  atoms=None
+
+def check_ff(path='.',fname=''):  # check path and fname
+    if(os.path.exists("%s/%s"%(path,fname))):
+        print("%s/%s"%(path,fname))
+        raise Exception("%s/%s already exist!!!"%(path,fname))
+
+def write_potcar(opts,path):
+    """Writes the POTCAR file."""
+    # the VASP-recommended PAW PBE potentials were adopted 
+    # except for Li, Eu_3, Yb_3, and W_sv to keep consistent with materials project.
+    # https://docs.materialsproject.org/methodology/mof-methodology/calculation-parameters/psuedopotentials
+    atomtypes = atoms.get_chemical_symbols()
+    eletypes=[atomtypes[0]]
+    [eletypes.append(i) for i in atomtypes if i != eletypes[-1]]
+    pot='/potpaw_LDA/' if opts.lda else '/potpaw_PBE/'
+    fname='POTCAR_ref' if opts.ref else 'POTCAR'
+    if(opts.ref==False):  check_ff(path,fname)
+    potfile = open('%s/%s'%(path,fname),'w')
+    ppath=os.environ['VASP_PP_PATH'] if opts.ppath==None else opts.ppath
+    for eletype in eletypes:
+        if(opts.paccu[0] in ['n','N']):
+            try:
+                setup=setups[eletype]
+            except:
+                setup=''
+        else:
+            setup=''
+        pname=ppath+pot+eletype+setup+'/POTCAR'
+        for line in open(pname, 'r'):
+            potfile.write(line)
+    print("\n---------write POTCAR---------")
+    print("pp type:  ",pot[-4:-1])
+    print("elements: ",eletypes)
+    potfile.close()
+
+def write_kpoints(opts,path,phonon_dim=False):
+    print("\n---------write KPOINTS--------")
+    global N_kpoints
+    fname='KPOINTS_ref' if opts.ref else 'KPOINTS'
+    if(opts.ref==False):  check_ff(path,fname)
+    kfile=open('%s/%s'%(path,fname),'w')
+    if(opts.ktype in ['Gamma','G','MP','M']):
+        if(opts.kaccu ==  None):
+            if(opts.accu[0] in ['n','N']):       # normal is default in opts
+                kaccu=1.0/40
+            elif(opts.accu[0] in ['a','A']):     # accurate
+                kaccu=1.0/60
+            elif(opts.accu[0] in ['l','L']):     # low
+                kaccu=1.0/30
+        else:
+            kaccu=opts.kaccu
+        ksample='Gamma' if opts.ktype[0]=='G' else 'Monkhorst Pack'
+        kfile.write("K-POINTS\n0\n%s\n"%ksample)
+        b={}
+        b[0]=np.linalg.solve(atoms.cell.array,np.array([[1],[0],[0]]))
+        b[1]=np.linalg.solve(atoms.cell.array,np.array([[0],[1],[0]]))
+        b[2]=np.linalg.solve(atoms.cell.array,np.array([[0],[0],[1]]))
+        N={}
+        for i in range(3):
+            if(phonon_dim):
+                N[i]=np.ceil(np.linalg.norm(b[i])/kaccu/2) if opts.dim[i]!=0 else 1
+            else:
+                N[i]=np.ceil(np.linalg.norm(b[i])/kaccu) if opts.dim[i]!=0 else 1
+
+        kfile.write("%d  %d  %d\n0  0  0\n"%(N[0],N[1],N[2])) 
+        N_kpoints=N[0]*N[1]*N[2]
+        print("dim:   ",opts.dim)
+        print("kaccu: 2*pi*%.3f"%kaccu)
+        print("ktype: ",ksample)
+        print("N_k:   %d %d %d"%(N[0],N[1],N[2]))
+    kfile.close()
+
+class incar:
+    def __init__(self,opts):
+        print("\n----------write INCAR---------")
+        global N_kpoints
+        self.default={}    # default
+        self.addcharge={}
+        self.parallel={}
+
+        self.spin={}
+        self.pbeU={}
+        self.r2scan={}
+        self.mix={}
+
+        self.opt={}
+        self.md={}
+        self.neb={}
+        self.ML={}
+        self.dos={}
+        self.bader={}
+        self.ELF={}
+        self.workfunction={}
+        self.chout={}
+        self.STM={}
+        self.BKcharge={}
+        self.phonon={}
+        self.vibration={}
+
+        # default values
+        self.default['ISTART']='0'
+        self.default['ICHARG']='2'
+        if(opts.ref):
+            enmax=float(os.popen('grep ENMAX POTCAR_ref |awk \'{if(a<$3) a=$3};END{print a}\'').read()[:-2])
+        else:
+            enmax=float(os.popen('grep ENMAX POTCAR |awk \'{if(a<$3) a=$3};END{print a}\'').read()[:-2])
+        # accu controls: PREC/ENCUT/EDIFF and KSPACING in KPOINTS
+        if(opts.accu[0] in ['n','N']):       #normal 
+            self.default['PREC']='Normal'
+            self.default['ENCUT']='%d'%(enmax*1.1)
+            self.default['EDIFF']='1E-5'
+        elif(opts.accu[0] in ['a','A']):     #accurate
+            self.default['PREC']='Accurate'
+            self.default['ENCUT']='%d'%(enmax*1.3)
+            self.default['EDIFF']='1E-6'
+        elif(opts.accu[0] in ['l','L']):     #low
+            self.default['PREC']='Normal'
+            self.default['ENCUT']='%d'%(enmax*1.0)
+            self.default['EDIFF']='1E-4'
+        self.default['ALGO']='Fast'
+        self.default['LREAL']='Auto'
+        self.default['ISMEAR']='0'
+        self.default['SIGMA']='0.1'
+        self.default['NELM']='100'
+        self.default['NELMIN']='4'
+        self.default['IVDW']='12'
+        self.default['ISIF']='2 #output Pressure for static calculations'
+
+        # add charge
+        if(opts.addcharge!=0):
+            if(opts.ref):
+                at_Nele=[round(float(i)) for i in os.popen('grep 000000000000 POTCAR_ref |grep -v E').read().split()]
+            else:
+                at_Nele=[round(float(i)) for i in os.popen('grep 000000000000 POTCAR |grep -v E').read().split()]
+            at_num=[round(float(i)) for i in os.popen('sed -n 7p POSCAR').read().split()]
+            nele=np.dot(at_Nele,at_num)
+            self.addcharge['NELECT']='%s'%(nele+opts.addcharge)
+            print("pristine ele number: %d"%nele)
+            print("add extra ele: %d"%opts.addcharge)
+            print("total ele: %d"%(nele+opts.addcharge))
+
+        # electronic calc para
+        # parallel 
+        if(len(atoms)>2):
+            self.parallel['NCORE']='8'
+            if(N_kpoints>1):
+                self.parallel['KPAR']='4'
+
+        if(opts.spin or opts.pbeU):
+            eletypes=[i for i in os.popen('sed -n 6p POSCAR').read().split()]
+            at_nums=[int(i) for i in os.popen('sed -n 7p POSCAR').read().split()]
+
+        if(opts.spin):
+            self.pop_default('NELM')
+            self.spin['NELM']='200'
+            self.spin['ISPIN']='2'
+            self.spin['MAGMOM']=''
+            for at_num,ele in zip(at_nums,eletypes):
+                try:      at_mag=MAGMOM_all[ele]
+                except:   at_mag=0.2
+                self.spin['MAGMOM']+='%d*%.1f '%(at_num,at_mag)
+            print("ISPIN=2")
+            print("MAGMOM=%s"%self.spin['MAGMOM'])
+
+        if(opts.pbeU):
+            self.pbeU['LDAU']='True'
+            self.pbeU['LDAUTYPE']='2'
+            self.pbeU['LDAUL']=''
+            self.pbeU['LDAUU']=''
+            self.pbeU['LDAUJ']=''
+            for ele in eletypes:
+                ldaul='2    ' if ele in LDAUL_all  else '0    '
+                try:       ldauu='%.2f '%LDAUU_all[ele]
+                except:    ldauu='0.00 '
+                self.pbeU['LDAUL']+=ldaul
+                self.pbeU['LDAUU']+=ldauu
+                self.pbeU['LDAUJ']+='0    '
+
+            max_atomic_number=np.max([atomic_numbers[i] for i in eletypes])
+            if(max_atomic_number<57): # without f electrons
+                self.pbeU['LMAXMIX']='4 # =4 for d; =6 for f; important for bandstructure calc'
+            else:
+                self.pbeU['LMAXMIX']='6 # =4 for d; =6 for f; important for bandstructure calc'
+            self.pbeU['LASPH']='True # aspherical contributions. important for DFT+U, HSE, metaGGA, vdw-DFT'
+            self.pbeU['LDAUPRINT']='1 # Write occupancy matrix to the OUTCAR file'
+            self.pbeU['##']='https://docs.materialsproject.org/methodology/materials-methodology/calculation-details/gga+u-calculations'
+            self.pbeU['##']='https://docs.materialsproject.org/methodology/materials-methodology/thermodynamic-stability/thermodynamic-stability#gga-gga+u-mixing-corrections'
+            print("PBE+U")
+            print('Elements: ',eletypes)
+            print('LDAUL: ',self.pbeU['LDAUL'])
+            print('LDAUU: ',self.pbeU['LDAUU'])
+            print("max atomic number: %d"%max_atomic_number)
+
+        if(opts.r2scan):
+            self.r2scan['METAGGA']='R2SCAN  # R2SCAN is faster than SCAN with similar accuracy.'
+            self.r2scan['LASPH']='True # aspherical contributions. important for DFT+U, HSE, metaGGA, vdw-DFT'
+            print("METAGGA=R2SCAN")
+        if(opts.mix):   # for elec step convergence
+            self.mix['AMIX']='0.2'
+            self.mix['BMIX']='0.001'
+            self.mix['AMIX_MAG']='0.1'
+            self.mix['BMIX_MAG']='0.001'
+
+        # work task
+        if(opts.opt):
+            self.pop_default('ISIF')
+            self.opt['ISIF']='2 #fix box'
+            self.opt['IBRION']='2'
+            self.opt['POTIM']='0.4'
+            self.opt['EDIFFG']='-0.01' if opts.optaccu else '-0.02'
+            self.opt['NSW']='1000'
+        if(opts.md):
+            self.pop_default('ISIF')
+            self.md['ISIF']='2 #fix box'
+            self.md['IBRION']='0'
+            self.md['POTIM']='1'
+            self.md['NSW']='10000'
+            self.md['TEBEG']='500'
+            self.md['#TEEND']='3000'
+            self.md['SMASS']='1'
+            self.md['ISYM']='0'
+            if(opts.opt):
+                raise Exception("opt and md can not perform at the same time!!!")
+        if(opts.neb):
+            self.pop_default('ISIF')
+            self.neb['ISIF']='2 #fix box'
+            self.neb['EDIFFG']='-0.03'
+            self.neb['NSW']='1000'
+            self.neb['IBRION']='3'
+            self.neb['POTIM']='0'
+            self.neb['IOPT']='7 # 1-LBFGS 2-CG 3-QM 4-SD 7-FIRE 8-ML'
+            self.neb['##: ']='complex system use 7, simple system use CG/LBFGS'
+            self.neb['ICHAIN']='0'
+            self.neb['IMAGES']='3'
+            self.neb['SPRING']='-5'
+            self.neb['LCLIMB']='True'
+            if(opts.opt or opts.md):
+                raise Exception("opt/md and neb can not perform at the same time!!!")
+            print("NEB calc.")
+            print("IMAGE=3")
+            print("IOPT=7")
+        if(opts.ML):
+            self.ML['ML_LMLFF']='True'
+            self.ML['ML_ISIART']='0  # 1 for restart'
+        if(opts.dos):
+            for item in ['ISMEAR','SIGMA']:
+                self.pop_default(item)
+            opts.chout=True    # output CHGCAR WAVECAR
+            self.dos['ISMEAR']='-5'
+            self.dos['LORBIT']='11'
+            self.dos['NEDOS']='3000'
+            self.dos['EMIN']='-20'
+            self.dos['EMAX']='10'
+        if(opts.bader):
+            self.bader['LAECHG']='TRUE # only for static calculation'
+            self.bader['#1: ']='chgsum.pl AECCAR0 AECCAR2'
+            self.bader['#2: ']='bader CHGCAR -ref CHGCAR_sum'
+            self.bader['##: ']='AECCAR0/1/2: core/overlapping_atomic/self-consistent_valence charge density'
+            if(opts.opt):
+                raise Exception("bader calculation should not be included in a opt calculation!!!")
+        if(opts.ELF):
+            self.ELF['LELF']='True'
+        if(opts.workfunction):
+            self.workfunction['LDIPOL']='True  # open dipole correction'
+            self.workfunction['IDIPOL']='3 # for z direction; 4 for molecule'
+            self.workfunction['#DIPOL']='0.5 0.5 0.5 # default value is usually reliable'
+            self.workfunction['LVHAR']='True # output LOCPOT'
+            self.workfunction['#1: ']='vaspkit -task 42'
+        if(opts.chout):
+            self.chout['LWAVE']='True'
+            self.chout['LCHARG']='True'
+        else:
+            self.chout['LWAVE']='False'
+            self.chout['LCHARG']='False'
+        if(opts.STM):
+            self.STM['LPARD']='True   # output PARCHG'
+            self.STM['LSEPK']='False  # seperate K points'
+            self.STM['LSEPB']='False  # seperate band'
+            self.STM['NBMOD']='-3  # set Formi level as the energy reference '
+            self.STM['EINT']='-0.1 0.1  # energy range' 
+            self.STM['#1: ']='vaspkit task 325'
+            self.STM['##: PREC']='Single # to avoids high-frequency oscillations of the charge density in the vacuum region'
+        if(opts.BKcharge):
+            self.BKcharge['LPARD']='True  # output PARCHG'
+            self.BKcharge['LSEPK']='True  # seperate Kpoints'
+            self.BKcharge['LSEPB']='True  # seperate band'
+            self.BKcharge['IBAND']='10 11 12  # band index, find it from calculated OUTCAR'
+            self.BKcharge['KPUSE']='1 2 3 4 # Kpoint index, also from OUTCAR'
+        if(opts.phonon):
+            if(opts.opt or opts.md):
+                raise Exception("phonon calculation should not be included in a opt/md calculation!!!")
+            for item in ['ALGO','LREAL']:
+                self.pop_default(item)
+            self.phonon['EDIFF']='1e-07'
+            self.phonon['IALGO']='38'
+            self.phonon['LREAL']='False'
+            self.phonon['ADDGRID']='True'
+            self.phonon['IBRION']='8 # DFPT method'
+        if(opts.vibration):
+            if(opts.opt or opts.md):
+                raise Exception("vibration calculation should not be included in a opt/md calculation!!!")
+            self.vibration['IBRION']='5 # GAMMA vibration; no symmetry and suitable for surface system'
+            self.vibration['#IBRION']='6 # GAMMA vibration; symmetry and suitable for molecule system'
+            self.vibration['POTIM']='0.015'
+            self.vibration['NFREE']='2'
+            self.vibration['##: ']='vaspkit task 501 # for adsorbate'
+            self.vibration['##: ']='vaspkit task 502 # for molecule'
+
+    def pop_default(self,*items):
+        for item in items:
+            if(item in self.default):
+                self.default.pop(item)
+
+    def write(self,path):
+        fname='INCAR_ref' if opts.ref else 'INCAR'
+        if(opts.ref==False):  check_ff(path,fname)
+        ifile=open('%s/%s'%(path,fname),'w')
+        output={}
+        output['default']=self.default
+        output['addcharge']=self.addcharge
+        output['parallel']=self.parallel
+        output['spin']=self.spin
+        output['r2scan']=self.r2scan
+        output['pbeU']=self.pbeU
+        output['mix']=self.mix
+        output['dos']=self.dos
+        output['workfunction']=self.workfunction
+        output['bader']=self.bader
+        output['ELF']=self.ELF
+        output['STM']=self.STM
+        output['BKcharge']=self.BKcharge
+        output['phonon']=self.phonon
+        output['vibration']=self.vibration
+        output['opt']=self.opt
+        output['md']=self.md
+        output['neb']=self.neb
+        output['chout']=self.chout
+        output['ML']=self.ML
+        for calc, paras in output.items():
+            if(paras):
+                ifile.write("#---------- %s ----------#\n"%calc)
+                for key, value in paras.items():
+                    ifile.write("%s = %s\n"%(key,value))
+                ifile.write('\n')
+        ifile.close()
+
+def write_files(opts,path='.',phonon_dim=False):
+    if(path=='.'):
+        if(opts.wpotcar):
+            write_potcar(opts,path)
+        if(opts.wkpoints):
+            write_kpoints(opts,path,phonon_dim=phonon_dim)
+        if(opts.wincar):
+            iincar=incar(opts)
+            iincar.write(path)
+    else:
+        if(opts.ref==False):    check_ff(path)
+        os.mkdir(path)
+        write_potcar(opts,path)
+        write_kpoints(opts,path,phonon_dim=phonon_dim)
+        iincar=incar(opts)
+        iincar.write(path)
+
+if(__name__=='__main__'):
+    opts, args = command_line_arg()
+
+    # default accu
+    if(opts.accu is None):
+        if(opts.dos or opts.workfunction or opts.phonon):  # these calc requires higher accuracy
+            opts.accu='Accurate' # ENCUT=ENMAX*1.3; EDIFF=1E-6; PREC=Accurate; KSPACING=2*pi*1/60
+        else:
+            opts.accu='Normal' # ENCUT=ENMAX*1.1; EDIFF=1E-5; PREC=Normal; KSPACING=2*pi*1/40
+        #    opts.accu='Low' # ENCUT=ENMAX*1.0; EDIFF=1E-4; PREC=Normal; KSPACING=2*pi*1/30
+
+    if(not args):
+        write_files(opts)
+        exit()
+
+    write_potcar(opts=opts,path='.')
+    record=open('calc_procedure','w')
+
+    if('opt' in args):
+        print("\n==================== OPT ====================")
+        path='opt'
+        opts1=copy.deepcopy(opts)
+        opts1.opt=True
+        write_files(opts1,path=path)
+        record.write("\n#=================== OPT ===================#\n")
+        record.write("cp POSCAR opt/\ncd opt/\nrun_vasp\ncd ..\n")
+
+    if('dos' in args):
+        print("\n==================== DOS ====================")
+        path='dos'
+        opts1=copy.deepcopy(opts)
+        opts1.dos=True
+        opts1.accu='Accurate' # ENCUT=ENMAX*1.3; EDIFF=1E-6; PREC=Accurate; KSPACING=2*pi*1/60
+        opts1.ELF=True
+        opts1.bader=True
+        write_files(opts1,path=path)
+        record.write("\n#=================== DOS ===================#\n")
+        record.write("cp opt/CONTCAR %s/POSCAR\ncd %s/\nrun_vasp\ncd ..\n"%(path,path))
+
+    if('phonon' in args or 'vibration' in args): # re-opt with higher accuracy
+        print("\n=================== Re-OPT ==================")
+        path='opt_acc'
+        opts1=copy.deepcopy(opts)
+        opts1.opt=True
+        opts1.optaccu=True    # EDIFFG=-0.01
+        opts1.accu='Accurate' # ENCUT=ENMAX*1.3; EDIFF=1E-6; PREC=Accurate; KSPACING=2*pi*1/60
+        write_files(opts1,path=path)
+        record.write("\n#================== Re-OPT =================#\n")
+        record.write("cp opt/CONTCAR %s/POSCAR\ncd %s/\nrun_vasp\ncd ..\n"%(path,path))
+
+    if('phonon' in args):
+        print("\n=================== PHONON ==================")
+        path='phonon'
+        opts1=copy.deepcopy(opts)
+        opts1.phonon=True
+        opts1.accu='Accurate' # ENCUT=ENMAX*1.3; EDIFF=1E-6; PREC=Accurate; KSPACING=2*pi*1/60
+        write_files(opts1,path=path,phonon_dim=True)
+        record.write("\n#================== PHONON =================#\n")
+        record.write("cp opt_acc/CONTCAR %s/POSCAR-unit\ncd %s/\n"%(path,path))
+        Ndim=[i+1 for i in opts.dim]
+        record.write("phonopy -d --dim=\"%d %d %d\" -c POSCAR-unit\n"%(Ndim[0],Ndim[1],Ndim[2]))
+        record.write("mv SPOSCAR POSCAR\nrun_vasp\nphonopy --fc vasprun.xml\n")
+        record.write("#phonopy --dim=\"%d %d %d\" -c POSCAR-unit band.conf\n"%(Ndim[0],Ndim[1],Ndim[2]))
+        record.write("#phonopy -t -p mesh.conf\n")
+        record.write("#more example: https://phonopy.github.io/phonopy/examples.html#\n")
+        # write an exaple of band.conf for phononpy calc
+        band_conf=open('band.conf-example','w')
+        band_conf.write("""TOM_NAME = Mo S
+BAND = 0.0 0.0 0.0  0.5 0.0 0.0  0.3333 0.3333 0.0  0.0 0.0 0.0  
+FORCE_CONSTANTS = READ\n""")
+        band_conf.close()
+
+    if('vibration' in args):
+        print("\n================== Vibration ================")
+        path='vibration'
+        opts1=copy.deepcopy(opts)
+        opts1.vibration=True
+        opts1.accu='Accurate' # ENCUT=ENMAX*1.3; PREC=Accurate; KSPACING=2*pi*1/60
+        write_files(opts1,path=path)
+        record.write("\n#================= Vibration ===============#\n")
+        record.write("cp opt_acc/CONTCAR %s/POSCAR\ncd %s/\nrun_vasp\ncd ..\n"%(path,path))
+        record.write("#vaspkit task 501 # for adsorbate\n")
+        record.write("#vaspkit task 502 # for molecule\n")
+
+    if('neb' in args):
+        print("\n==================== NEB ====================")
+        path='neb'
+        opts1=copy.deepcopy(opts)
+        opts1.neb=True
+        write_files(opts1,path=path)
+        record.write("\n#=================== NEB ===================#\n")
+        record.write("nebmake.pl init/CONTCAR fin/CONTCAT 3")
+
+    record.close()
+    print('')

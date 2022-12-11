@@ -1,0 +1,37 @@
+#---------- default ----------#
+ISTART = 0
+ICHARG = 2
+PREC = Accurate
+ENCUT = 520
+EDIFF = 1E-6
+ALGO = Fast
+LREAL = Auto
+NELM = 100
+NELMIN = 4
+IVDW = 12
+ISIF = 2 #output Pressure for static calculations
+
+#---------- parallel ----------#
+NCORE = 8
+KPAR = 4
+
+#---------- dos ----------#
+ISMEAR = -5
+LORBIT = 11
+NEDOS = 3000
+EMIN = -20
+EMAX = 10
+
+#---------- bader ----------#
+LAECHG = TRUE # only for static calculation
+#1:  = chgsum.pl AECCAR0 AECCAR2
+#2:  = bader CHGCAR -ref CHGCAR_sum
+##:  = AECCAR0/1/2: core/overlapping_atomic/self-consistent_valence charge density
+
+#---------- ELF ----------#
+LELF = True
+
+#---------- chout ----------#
+LWAVE = True
+LCHARG = True
+

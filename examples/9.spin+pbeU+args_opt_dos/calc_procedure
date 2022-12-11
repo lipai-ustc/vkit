@@ -1,0 +1,12 @@
+
+#=================== OPT ===================#
+cp POSCAR opt/
+cd opt/
+run_vasp
+cd ..
+
+#=================== DOS ===================#
+cp opt/CONTCAR dos/POSCAR
+cd dos/
+run_vasp
+cd ..

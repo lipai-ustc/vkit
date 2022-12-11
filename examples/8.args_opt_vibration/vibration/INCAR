@@ -1,0 +1,30 @@
+#---------- default ----------#
+ISTART = 0
+ICHARG = 2
+PREC = Accurate
+ENCUT = 520
+EDIFF = 1E-6
+ALGO = Fast
+LREAL = Auto
+ISMEAR = 0
+SIGMA = 0.1
+NELM = 100
+NELMIN = 4
+IVDW = 12
+ISIF = 2 #output Pressure for static calculations
+
+#---------- parallel ----------#
+NCORE = 8
+KPAR = 4
+
+#---------- vibration ----------#
+IBRION = 5 # GAMMA vibration; no symmetry and suitable for surface system
+#IBRION = 6 # GAMMA vibration; symmetry and suitable for molecule system
+POTIM = 0.015
+NFREE = 2
+##:  = vaspkit task 502 # for molecule
+
+#---------- chout ----------#
+LWAVE = False
+LCHARG = False
+

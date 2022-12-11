@@ -1,0 +1,42 @@
+#---------- default ----------#
+ISTART = 0
+ICHARG = 2
+PREC = Normal
+ENCUT = 440
+EDIFF = 1E-5
+ALGO = Fast
+LREAL = Auto
+ISMEAR = 0
+SIGMA = 0.1
+NELMIN = 4
+IVDW = 12
+ISIF = 2 #output Pressure for static calculations
+
+#---------- parallel ----------#
+NCORE = 8
+KPAR = 4
+
+#---------- spin ----------#
+NELM = 200
+ISPIN = 2
+MAGMOM = 4*5.0 1*0.2 1*5.0 1*0.2 1*0.2 1*5.0 1*5.0 
+
+#---------- r2scan ----------#
+METAGGA = R2SCAN  # R2SCAN is faster than SCAN with similar accuracy.
+LASPH = True # aspherical contributions. important for DFT+U, HSE, metaGGA, vdw-DFT
+
+#---------- pbeU ----------#
+LDAU = True
+LDAUTYPE = 2
+LDAUL = 2    0    2    0    0    2    2    
+LDAUU = 3.25 0.00 3.25 0.00 0.00 5.30 3.90 
+LDAUJ = 0    0    0    0    0    0    0    
+LMAXMIX = 4 # =4 for d; =6 for f; important for bandstructure calc
+LASPH = True # aspherical contributions. important for DFT+U, HSE, metaGGA, vdw-DFT
+LDAUPRINT = 1 # Write occupancy matrix to the OUTCAR file
+## = https://docs.materialsproject.org/methodology/materials-methodology/thermodynamic-stability/thermodynamic-stability#gga-gga+u-mixing-corrections
+
+#---------- chout ----------#
+LWAVE = False
+LCHARG = False
+

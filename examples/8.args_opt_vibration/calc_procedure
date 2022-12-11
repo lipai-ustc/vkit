@@ -1,0 +1,20 @@
+
+#=================== OPT ===================#
+cp POSCAR opt/
+cd opt/
+run_vasp
+cd ..
+
+#================== Re-OPT =================#
+cp opt/CONTCAR opt_acc/POSCAR
+cd opt_acc/
+run_vasp
+cd ..
+
+#================= Vibration ===============#
+cp opt_acc/CONTCAR vibration/POSCAR
+cd vibration/
+run_vasp
+cd ..
+#vaspkit task 501 # for adsorbate
+#vaspkit task 502 # for molecule
