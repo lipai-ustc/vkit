@@ -7,7 +7,7 @@ Installation
 echo "export PATH=$PATH:#The vkit PATH" >> ~/.bashrc
 echo "export VASP_PP_PATH=#Your POTCARs PATH" >> ~/.bashrc
 ```
-remember to replace the "#The vkit PATH" and "#Your POTCARs PATH" with your correct PATHs.
+Remember to replace the "#The vkit PATH" and "#Your POTCARs PATH" with your correct PATHs.  
 The "#Your POTCARs PATH" should contain folders "potpaw_LDA" and "potpaw_PBE" containing availabe elemental POTCAR files.
 
 Options
@@ -62,8 +62,8 @@ Examples 1
 ```
 python ../../vkit -i -k -p --dim=1 1 0 --STM
 ```
--i -k -p     # for generating INCAR KPOINTS and POTCAR
---dim=1 1 0  # for slab model calculation, where the number of kpoints in z direction is set to 1.
+-i -k -p     # for generating INCAR KPOINTS and POTCAR   
+--dim=1 1 0  # for slab model calculation, where the number of kpoints in z direction is set to 1.  
 --STM        # write into INCAR STM-simulation related tags, such as LPARD, LSEPK, LSEPB, NBMOD, and EINT
 
 Example 2
