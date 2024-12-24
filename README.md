@@ -6,6 +6,7 @@ A python tool for generating VASP inputs for general tasks.  POSCAR file should 
 ```
 echo "export PATH=$PATH:#The vkit PATH" >> ~/.bashrc
 echo "export VASP_PP_PATH=#Your POTCARs PATH" >> ~/.bashrc
+source ~/.bashrc
 ```
 Remember to replace the "#The vkit PATH" and "#Your POTCARs PATH" with your correct PATHs.  
 The "#Your POTCARs PATH" should contain folders "potpaw_LDA" and "potpaw_PBE" containing availabe elemental POTCAR files.
@@ -61,7 +62,7 @@ The "#Your POTCARs PATH" should contain folders "potpaw_LDA" and "potpaw_PBE" co
 ## Examples
 _Example 1_
 ```
-python ../../vkit -i -k -p --dim=1 1 0 --STM
+vkit -i -k -p --dim=1 1 0 --STM
 ```
 > -i -k -p　　　# for generating INCAR KPOINTS and POTCAR   
 > --dim=1 1 0　# for slab model calculation, where the number of kpoints in z direction is set to 1.  
@@ -69,20 +70,20 @@ python ../../vkit -i -k -p --dim=1 1 0 --STM
 
 _Example 2_
 ```
-python ../../vkit -i -k -p --opt --accu=Low --dim=1 1 0
+vkit -i -k -p --opt --accu=Low --dim=1 1 0
 ```
 > --opt　　　　　# write into INCAR optimization related tags, such as ISIF, IBRION, POTIM, EDIFFG and NSW
 
 _Example 3_
 ```
-python ../../vkit -i -k -p --spin --dim=1 1 0 --dos
+vkit -i -k -p --spin --dim=1 1 0 --dos
 ```
 > --spin　　　　# write into INCAR open-shell related tags, such as ISPIN, MAGMOM, and set NELM=200  
 > --dos　　　　# write into INCAR density-of-state related tags, such as ISMEAR, LORBIT, NEDOS, EMIN, and EMAX
 
 _Example 4_
 ```
-python ../../vkit -i -k -p --spin --r2scan --pbeU --dim=1 1 0
+vkit -i -k -p --spin --r2scan --pbeU --dim=1 1 0
 ```
 > --r2scan　　　# write into INCAR r2scan related tags, such as METAGGA, and LASPH  
 > --pbeU　　　　# write into INCAR PBE+U related tags, such as LDAU, LDAUTYPE, LDAUL, LDAUU, and LDAUJ
