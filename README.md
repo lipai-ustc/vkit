@@ -1,4 +1,4 @@
-# vkit (vasp-kit)
+# vkit (for generating VASP input files)
 lipai@mail.ustc.edu.cn  
 A python tool for generating VASP inputs for general tasks.  
 Usage please refer to the file *test.sh* in the *example* folder.
