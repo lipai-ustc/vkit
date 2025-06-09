@@ -68,6 +68,19 @@ def write_potcar(opts,path):
     print("elements: ",eletypes)
     potfile.close()
 
+def has_vacuum(threshold=8): # 是否存在真空层。
+    positions = atoms.get_positions()
+    cell = atoms.get_cell()
+    cell_lengths = cell.lengths()
+    # 判断是否含真空
+    hdim = [1,1,1]
+    for i in range(3):
+        coord = positions[:, i]
+        span = np.max(coord) - np.min(coord)
+        if cell_lengths[i]-span > threshold:
+            hdim[i] = 0 
+    return hdim
+
 def write_kpoints(opts,path,phonon_dim=False):
     print("\n---------write KPOINTS--------")
     global N_kpoints
@@ -91,11 +104,25 @@ def write_kpoints(opts,path,phonon_dim=False):
         b[1]=np.linalg.solve(atoms.cell.array,np.array([[0],[1],[0]]))
         b[2]=np.linalg.solve(atoms.cell.array,np.array([[0],[0],[1]]))
         N={}
-        for i in range(3):
-            if(phonon_dim):
-                N[i]=np.ceil(np.linalg.norm(b[i])/kaccu/2) if opts.dim[i]!=0 else 1
+      
+        hdim=has_vacuum()
+        for i,drct in enumerate(['x','y','z']):
+            if opts.dim[i]==0:
+                N[i]=1
+            elif hdim[i]==0:
+                N[i]=1
+                print()
+                print("#####################################################")
+                print("                 Important!!!                        ")
+                print("Deteckted a vacuum layer along the %s direction!!!"%drct)
+                print("Kpoint number of this direction is reset to 1")
+                print("Please check if this is correct!!!")
+                print("#####################################################")
+                print()
+            elif(phonon_dim):
+                N[i]=np.ceil(np.linalg.norm(b[i])/kaccu/2)
             else:
-                N[i]=np.ceil(np.linalg.norm(b[i])/kaccu) if opts.dim[i]!=0 else 1
+                N[i]=np.ceil(np.linalg.norm(b[i])/kaccu)
 
         kfile.write("%d  %d  %d\n0  0  0\n"%(N[0],N[1],N[2])) 
         N_kpoints=N[0]*N[1]*N[2]
